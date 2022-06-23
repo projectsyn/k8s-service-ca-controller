@@ -15,7 +15,7 @@ func DeleteCertificate(ctx context.Context, l logr.Logger, c client.Client, req 
 	certName := CertificateName(req.Name, req.Namespace)
 
 	cert := cmapi.Certificate{}
-	if err := c.Get(ctx, client.ObjectKey{Name: certName, Namespace: req.Namespace}, &cert); err != nil {
+	if err := c.Get(ctx, client.ObjectKey{Name: certName, Namespace: ServiceNamespace}, &cert); err != nil {
 		if errors.IsNotFound(err) {
 			// Return if we don't have a Certificate which matches
 			// the deleted service
@@ -29,7 +29,7 @@ func DeleteCertificate(ctx context.Context, l logr.Logger, c client.Client, req 
 
 	// Delete cert
 	cert.Name = certName
-	cert.Namespace = req.Namespace
+	cert.Namespace = ServiceNamespace
 	if err := c.Delete(ctx, &cert); err != nil {
 		return err
 	}

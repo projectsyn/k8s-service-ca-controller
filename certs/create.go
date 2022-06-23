@@ -16,7 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func CreateCertificate(ctx context.Context, l logr.Logger, c client.Client, svc corev1.Service, secretName string) error {
+func CreateCertificate(ctx context.Context, l logr.Logger, c client.Client, svc corev1.Service) error {
 	certName := CertificateName(svc.Name, svc.Namespace)
 
 	cert := cmapi.Certificate{}
