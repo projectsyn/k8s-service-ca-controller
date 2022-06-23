@@ -7,8 +7,7 @@ RUN \
     ca-certificates \
     tzdata
 
-# TODO: Adjust binary file name
-ENTRYPOINT ["go-bootstrap"]
-COPY go-bootstrap /usr/bin/
+ENTRYPOINT ["k8s-service-ca-controller"]
+COPY k8s-service-ca-controller /usr/bin/
 
 USER 65536:0

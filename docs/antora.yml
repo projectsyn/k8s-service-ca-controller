@@ -1,6 +1,5 @@
-# TODO: Adjust project meta
-name: go-bootstrap
-title: Go Bootstrap
+name: k8s-service-ca-controller
+title: Kubernetes Service CA controller
 version: master
 start_page: ROOT:index.adoc
 nav:

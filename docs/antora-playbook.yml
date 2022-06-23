@@ -1,8 +1,7 @@
 site:
-  # TODO: Adjust project meta
-  title: Go Bootstrap
-  start_page: go-bootstrap::index.adoc
-  url: https://vshn.github.io/go-bootstrap
+  title: Kubernetes Service CA controller
+  start_page: k8s-service-ca-controller::index.adoc
+  url: https://syn.tools/k8s-service-ca-controller
 content:
   sources:
     - url: ../antora
@@ -12,7 +11,7 @@ content:
       start_path: docs
 ui:
   bundle:
-    url: https://github.com/vshn/antora-ui-default/releases/download/2.0.15/ui-bundle.zip
+    url: https://github.com/projectsyn/antora-ui-default/releases/download/2.1.0/ui-bundle.zip
     snapshot: true
 output:
   dir: .public/
