@@ -31,6 +31,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	cmapi "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
+
 	"github.com/projectsyn/k8s-service-ca-controller/controllers"
 	//+kubebuilder:scaffold:imports
 )
@@ -42,6 +44,7 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(cmapi.AddToScheme(scheme))
 
 	//+kubebuilder:scaffold:scheme
 }

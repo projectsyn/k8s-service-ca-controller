@@ -20,6 +20,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/projectsyn/k8s-service-ca-controller/certs"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -38,19 +40,13 @@ type ServiceReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=syn.tools,resources=services,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=syn.tools,resources=services/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=syn.tools,resources=services/finalizers,verbs=update
+//+kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch
+//+kubebuilder:rbac:groups="",resources=services/status,verbs=get
+//+kubebuilder:rbac:groups=cert-manager.io,resources=certificates,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=cert-manager.io,resources=certificates/status,verbs=get;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the Service object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.2/pkg/reconcile
 func (r *ServiceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx).WithValues("namespace", req.Namespace, "name", req.Name)
 
@@ -60,6 +56,15 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		Name:      req.Name,
 	}, &svc)
 	if err != nil {
+		if errors.IsNotFound(err) {
+			// TODO: fail gracefully here, if a service for which
+			// we don't manage a cert gets deleted
+			if err := certs.DeleteCertificate(ctx, l, r.Client, req); err != nil {
+				return ctrl.Result{}, err
+			}
+			return ctrl.Result{}, nil
+		}
+
 		return ctrl.Result{}, err
 	}
 
@@ -70,6 +75,11 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 	if secretName, ok := labels[ServingCertLabelKey]; ok {
 		l.Info(fmt.Sprintf("Service labeled for serving cert: secret name %s", secretName))
+		l.Info("Creating certificate for service")
+		err = certs.CreateCertificate(ctx, l, r.Client, svc, secretName)
+		if err != nil {
+			return ctrl.Result{}, nil
+		}
 	}
 
 	return ctrl.Result{}, nil
