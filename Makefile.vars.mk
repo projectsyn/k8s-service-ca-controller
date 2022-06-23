@@ -1,9 +1,8 @@
 ## These are some common variables for Make
 
 PROJECT_ROOT_DIR = .
-# TODO: Adjust project meta
-PROJECT_NAME ?= go-bootstrap
-PROJECT_OWNER ?= vshn
+PROJECT_NAME ?= k8s-service-ca-controller
+PROJECT_OWNER ?= projectsyn
 
 ## BUILD:go
 BIN_FILENAME ?= $(PROJECT_NAME)

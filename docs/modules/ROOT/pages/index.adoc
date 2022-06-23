@@ -1,11 +1,10 @@
-// TODO: Edit start page
-
-= {page-component-name}
+= Kubernetes Service CA controller
 
 [discrete]
 == Introduction
 
-Go Bootstrap is a template repository that helps bootstrapping new Go applications quickly with a standardized setup.
+The Kubernetes Service CA controller issues certificates for Services labelled with `service.syn.tools/serving-cert-secret-name`.
+The controller uses [cert-manager] for the actual certificate issuing and copies the generated certificate secret into the service namespace.
 
 [discrete]
 == Documentation

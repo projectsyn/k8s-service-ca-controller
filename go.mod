@@ -1,5 +1,4 @@
-// TODO: Replace module name
-module github.com/vshn/go-bootstrap
+module github.com/projectsyn/k8s-service-ca-controller
 
 go 1.18
 
