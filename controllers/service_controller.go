@@ -39,6 +39,8 @@ var (
 type ServiceReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+
+	CANamespace string
 }
 
 //+kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch

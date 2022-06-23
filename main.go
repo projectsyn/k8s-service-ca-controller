@@ -17,22 +17,30 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"k8s.io/client-go/rest"
+
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	cmapi "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
+	"github.com/go-logr/logr"
 
+	"github.com/projectsyn/k8s-service-ca-controller/certs"
 	"github.com/projectsyn/k8s-service-ca-controller/controllers"
 	//+kubebuilder:scaffold:imports
 )
@@ -45,6 +53,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(cmapi.AddToScheme(scheme))
+	utilruntime.Must(extv1.AddToScheme(scheme))
 
 	//+kubebuilder:scaffold:scheme
 }
@@ -53,11 +62,15 @@ func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
+	var caNamespace string
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+	flag.StringVar(&caNamespace, "ca-namespace", "cert-manager",
+		"The namespace in which the controller will create the CA certificate. "+
+			"For most setups, this should be the namespace in which cert-manager is deployed.")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -76,6 +89,18 @@ func main() {
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
+		os.Exit(1)
+	}
+
+	initClient, err := initClient(mgr.GetConfig())
+	if err != nil {
+		setupLog.Error(err, "unable to setup init client")
+		os.Exit(1)
+	}
+
+	err = initializeServiceCA(initClient, setupLog, caNamespace)
+	if err != nil {
+		setupLog.Error(err, "unable to initialize service CA")
 		os.Exit(1)
 	}
 
@@ -102,4 +127,23 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+}
+
+func initClient(config *rest.Config) (client.Client, error) {
+	return client.New(config, client.Options{Scheme: scheme})
+}
+
+func initializeServiceCA(c client.Client, l logr.Logger, caNamespace string) error {
+	cmcrd := extv1.CustomResourceDefinition{}
+	if err := c.Get(context.Background(), client.ObjectKey{Name: "certificates.cert-manager.io"}, &cmcrd); err != nil {
+		if errors.IsNotFound(err) {
+			l.Error(err, "CRD `certificates.cert-manager.io` missing, exiting...")
+			os.Exit(1)
+		}
+		// Return other errors
+		return err
+	}
+
+	// Ensure that service CA exists
+	return certs.EnsureCA(c, l, caNamespace)
 }
