@@ -25,6 +25,10 @@ build-bin: export CGO_ENABLED = 0
 build-bin: fmt vet ## Build binary
 	@go build -o $(BIN_FILENAME)
 
+.PHONY: run
+run:
+	go run . -zap-devel -zap-log-level info
+
 .PHONY: build-docker
 build-docker: build-bin ## Build docker image
 	$(DOCKER_CMD) build -t $(CONTAINER_IMG) .

@@ -3,7 +3,6 @@ package certs
 import (
 	"context"
 
-	cmapi "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -11,32 +10,22 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func DeleteCertificate(ctx context.Context, l logr.Logger, c client.Client, req ctrl.Request) error {
-	certName := CertificateName(req.Name, req.Namespace)
-
-	cert := cmapi.Certificate{}
-	if err := c.Get(ctx, client.ObjectKey{Name: certName, Namespace: ServiceNamespace}, &cert); err != nil {
-		if errors.IsNotFound(err) {
-			// Return if we don't have a Certificate which matches
-			// the deleted service
-			return nil
+func DeleteSecret(ctx context.Context, l logr.Logger, c client.Client, req ctrl.Request) error {
+	secrets := corev1.SecretList{}
+	err := c.List(ctx, &secrets,
+		client.MatchingLabels{
+			ServiceCertKey: CertificateName(req.Name),
+		}, client.InNamespace(req.Namespace))
+	if err != nil {
+		return err
+	}
+	for _, secret := range secrets.Items {
+		l.Info("deleting secret", "secret", secret.Name)
+		err = c.Delete(ctx, &secret)
+		if err != nil && !errors.IsNotFound(err) {
+			return err
 		}
-		// Bail on other errors
-		return err
 	}
 
-	l.Info("Cleaning up service certificate and secret")
-
-	// Delete cert
-	cert.Name = certName
-	cert.Namespace = ServiceNamespace
-	if err := c.Delete(ctx, &cert); err != nil {
-		return err
-	}
-
-	// Delete secret
-	secret := &corev1.Secret{}
-	secret.Name = certName
-	secret.Namespace = ServiceNamespace
-	return c.Delete(ctx, secret)
+	return nil
 }

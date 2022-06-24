@@ -19,7 +19,6 @@ package controllers
 import (
 	"context"
 
-	"github.com/go-logr/logr"
 	"github.com/projectsyn/k8s-service-ca-controller/certs"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -28,7 +27,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	cmapi "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 )
 
 var (
@@ -63,7 +63,7 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		if errors.IsNotFound(err) {
 			// TODO: fail gracefully here, if a service for which
 			// we don't manage a cert gets deleted
-			if err := certs.DeleteCertificate(ctx, l, r.Client, req); err != nil {
+			if err := certs.DeleteSecret(ctx, l, r.Client, req); err != nil {
 				return ctrl.Result{}, err
 			}
 			return ctrl.Result{}, nil
@@ -84,78 +84,21 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	l.Info("Creating certificate for service")
-	err = certs.CreateCertificate(ctx, l, r.Client, svc)
+
+	err = certs.CreateCertificate(ctx, l, r.Client, svc, secretName)
 	if err != nil {
-		return ctrl.Result{}, nil
-	}
-
-	secret := corev1.Secret{}
-	res, err := certs.FetchSecretForService(ctx, r.Client, &svc, &secret)
-	if !res.IsZero() {
-		// Requeue request if Certificate isn't ready yet
-		return res, nil
-	}
-	if err != nil {
-		// Bail if we get an error trying to fetch the certificate
-		// secret
-		l.Error(err, "While fetching Certificate secret")
-		return ctrl.Result{}, nil
-	}
-
-	return copySecret(ctx, l, r.Client, &secret, &svc, secretName)
-}
-
-func copySecret(ctx context.Context, l logr.Logger, c client.Client, secret *corev1.Secret, svc *corev1.Service, secretName string) (ctrl.Result, error) {
-	l.Info("Copying secret to service namespace")
-	secretKey := client.ObjectKey{
-		Name:      secretName,
-		Namespace: svc.Namespace,
-	}
-	s := corev1.Secret{}
-	update := false
-	if err := c.Get(ctx, secretKey, &s); err == nil {
-		update = true
-	}
-
-	if update {
-		l.Info("Secret exists already, updating data")
-		svcSecret := s.DeepCopy()
-		for k, v := range secret.Data {
-			svcSecret.Data[k] = v
-		}
-		setOwningService(svcSecret, svc)
-		err := c.Update(ctx, svcSecret)
-		if err != nil {
-			l.Error(err, "while updating copy of secret")
-		}
 		return ctrl.Result{}, err
 	}
 
-	// Create secret
-	l.Info("Secret doesn't exist yet, creating")
-	svcSecret := secret.DeepCopy()
-	svcSecret.ResourceVersion = ""
-	svcSecret.Name = secretName
-	svcSecret.Namespace = svc.Namespace
-	setOwningService(svcSecret, svc)
-
-	err := c.Create(ctx, svcSecret)
-	if err != nil {
-		l.Error(err, "while creating copy of secret")
-	}
-	return ctrl.Result{}, err
-}
-
-func setOwningService(secret *corev1.Secret, svc *corev1.Service) {
-	secret.OwnerReferences = []metav1.OwnerReference{
-		*metav1.NewControllerRef(svc, corev1.SchemeGroupVersion.WithKind("Service")),
-	}
+	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ServiceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Service{}).
+		//TODO: figure out which bits we need here
+		Owns(&cmapi.Certificate{}).
 		Owns(&corev1.Secret{}).
 		Complete(r)
 }

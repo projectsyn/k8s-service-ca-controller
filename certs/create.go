@@ -16,18 +16,18 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func CreateCertificate(ctx context.Context, l logr.Logger, c client.Client, svc corev1.Service) error {
-	certName := CertificateName(svc.Name, svc.Namespace)
+func CreateCertificate(ctx context.Context, l logr.Logger, c client.Client, svc corev1.Service, secretName string) error {
+	certName := CertificateName(svc.Name)
 
 	cert := cmapi.Certificate{}
 	err := c.Get(ctx, client.ObjectKey{
 		Name:      certName,
-		Namespace: "service-ca",
+		Namespace: svc.Namespace,
 	}, &cert)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			l.Info("Certificate resource doesn't exist, creating")
-			return newCertificate(ctx, c, certName, svc)
+			return newCertificate(ctx, c, certName, secretName, svc)
 		}
 
 		l.Info("Error looking up certificate resource", "error", err)
@@ -45,18 +45,18 @@ func CreateCertificate(ctx context.Context, l logr.Logger, c client.Client, svc 
 	return c.Update(ctx, &cert)
 }
 
-func newCertificate(ctx context.Context, c client.Client, certName string, svc corev1.Service) error {
+func newCertificate(ctx context.Context, c client.Client, certName, secretName string, svc corev1.Service) error {
 	cert := &cmapi.Certificate{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      certName,
-			Namespace: "service-ca", // TODO: make configurable
+			Namespace: svc.Namespace,
 		},
 		Spec: cmapi.CertificateSpec{
-			SecretName: certName,
+			SecretName: secretName,
 			IsCA:       false,
 			IssuerRef: cmmeta.ObjectReference{
-				Name:  "service-issuer",
-				Kind:  "Issuer",
+				Name:  ServiceIssuerName,
+				Kind:  "ClusterIssuer",
 				Group: "cert-manager.io",
 			},
 		},
@@ -91,12 +91,22 @@ func updateCertificate(cert *cmapi.Certificate, svc corev1.Service) error {
 	cert.Spec.RenewBefore = certRenewBefore
 	cert.Spec.DNSNames = svcDnsNames
 	cert.Spec.IPAddresses = svc.Spec.ClusterIPs
+	cert.Spec.SecretTemplate = &cmapi.CertificateSecretTemplate{
+		Labels: map[string]string{
+			ServiceCertKey: cert.Name,
+		},
+	}
+
+	// Set ownerreference on certificate to service
+	cert.OwnerReferences = []metav1.OwnerReference{
+		*metav1.NewControllerRef(&svc, corev1.SchemeGroupVersion.WithKind("Service")),
+	}
 
 	return nil
 }
 
 func certDurationFromSvc(svc *corev1.Service) (*metav1.Duration, error) {
-	// TODO: annotation/label on svc?
+	// TODO: annotation/label on svc
 	d, err := time.ParseDuration("2160h")
 	if err != nil {
 		return nil, err
@@ -105,7 +115,7 @@ func certDurationFromSvc(svc *corev1.Service) (*metav1.Duration, error) {
 }
 
 func certRenewBeforeFromSvc(svc *corev1.Service) (*metav1.Duration, error) {
-	// TODO: annotation/label on svc?
+	// TODO: annotation/label on svc
 	d, err := time.ParseDuration("360h")
 	if err != nil {
 		return nil, err

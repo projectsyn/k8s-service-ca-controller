@@ -3,9 +3,9 @@ package certs
 import "fmt"
 
 var (
-	ServiceNamespace = "service-ca"
+	ServiceCertKey = "service.syn.tools/certificate"
 )
 
-func CertificateName(svcName, svcNamespace string) string {
-	return fmt.Sprintf("%s-%s-tls", svcNamespace, svcName)
+func CertificateName(svcName string) string {
+	return fmt.Sprintf("%s-tls", svcName)
 }
