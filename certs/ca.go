@@ -22,21 +22,42 @@ var (
 	ServiceIssuerName    = "service-ca-issuer"
 )
 
+// EnsureCA ensures that the Service CA is completely setup on the cluster
 func EnsureCA(ctx context.Context, c client.Client, l logr.Logger, caNamespace string) error {
 	log := l.WithValues("caNamespace", caNamespace)
 
-	// Create self-signed issuer if not exists (in caNamespace)
+	err := ensureSelfSignedIssuer(ctx, c, log, caNamespace)
+	if err != nil {
+		return err
+	}
+
+	err = ensureCACertificate(ctx, c, log, caNamespace)
+	if err != nil {
+		return err
+	}
+
+	err = ensureServiceCAIssuer(ctx, c, log, caNamespace)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ensureSelfSignedIssuer creates a self-signed issuer in `caNamespace` if it
+// doesn't exist yet.
+func ensureSelfSignedIssuer(ctx context.Context, c client.Client, l logr.Logger, caNamespace string) error {
 	iss := cmapi.Issuer{}
 	err := c.Get(ctx, client.ObjectKey{
 		Name:      SelfSignedIssuerName,
 		Namespace: caNamespace,
 	}, &iss)
 	if err != nil && !errors.IsNotFound(err) {
-		log.Error(err, "while fetching self-signed issuer")
+		l.Error(err, "while fetching self-signed issuer")
 		return err
 	}
 	if errors.IsNotFound(err) {
-		log.Info("Self-signed issuer doesn't exist, creating...")
+		l.Info("Self-signed issuer doesn't exist, creating...")
 		iss.Name = SelfSignedIssuerName
 		iss.Namespace = caNamespace
 		iss.Spec.SelfSigned = &cmapi.SelfSignedIssuer{}
@@ -44,34 +65,40 @@ func EnsureCA(ctx context.Context, c client.Client, l logr.Logger, caNamespace s
 			return err
 		}
 	}
+	return nil
+}
 
+func ensureCACertificate(ctx context.Context, c client.Client, l logr.Logger, caNamespace string) error {
 	// Create CA cert if not exists (in caNamespace)
 	caCert := cmapi.Certificate{}
-	err = c.Get(ctx, client.ObjectKey{
+	err := c.Get(ctx, client.ObjectKey{
 		Name:      CACertName,
 		Namespace: caNamespace,
 	}, &caCert)
 	if err != nil && !errors.IsNotFound(err) {
-		log.Error(err, "while fetching service CA certificate")
+		l.Error(err, "while fetching service CA certificate")
 		return err
 	}
 	if errors.IsNotFound(err) {
-		log.Info("Service CA certificate doesn't exist, creating...")
+		l.Info("Service CA certificate doesn't exist, creating...")
 		initCACertificate(&caCert, caNamespace)
 		if err := c.Create(ctx, &caCert); err != nil {
 			return err
 		}
 	}
+	return nil
+}
 
+func ensureServiceCAIssuer(ctx context.Context, c client.Client, l logr.Logger, caNamespace string) error {
 	// Create Service CA clusterissuer, if not exists
 	serviceIssuer := cmapi.ClusterIssuer{}
-	err = c.Get(ctx, client.ObjectKey{Name: ServiceIssuerName}, &serviceIssuer)
+	err := c.Get(ctx, client.ObjectKey{Name: ServiceIssuerName}, &serviceIssuer)
 	if err != nil && !errors.IsNotFound(err) {
-		log.Error(err, "while fetching service CA cluster issuer")
+		l.Error(err, "while fetching service CA cluster issuer")
 		return err
 	}
 	if errors.IsNotFound(err) {
-		log.Info("Service CA cluster issuer doesn't exist, creating...")
+		l.Info("Service CA cluster issuer doesn't exist, creating...")
 		serviceIssuer.Name = ServiceIssuerName
 		serviceIssuer.Spec.CA = &cmapi.CAIssuer{
 			SecretName: CASecretName,
@@ -80,7 +107,6 @@ func EnsureCA(ctx context.Context, c client.Client, l logr.Logger, caNamespace s
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -98,7 +124,7 @@ func initCACertificate(caCert *cmapi.Certificate, caNamespace string) {
 	caCert.Spec.IssuerRef = cmmeta.ObjectReference{
 		Name:  SelfSignedIssuerName,
 		Kind:  "Issuer",
-		Group: "",
+		Group: "cert-manager.io",
 	}
 }
 
