@@ -7,4 +7,7 @@ resources:
 - controller: true
   kind: Service
   version: v1
+- controller: true
+  kind: ConfigMap
+  version: v1
 version: "3"

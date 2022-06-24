@@ -2,10 +2,14 @@ package certs
 
 import (
 	"context"
+	"fmt"
+	"time"
+	"unicode/utf8"
 
 	cmapi "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	cmmeta "github.com/cert-manager/cert-manager/pkg/apis/meta/v1"
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -18,10 +22,8 @@ var (
 	ServiceIssuerName    = "service-ca-issuer"
 )
 
-func EnsureCA(c client.Client, l logr.Logger, caNamespace string) error {
+func EnsureCA(ctx context.Context, c client.Client, l logr.Logger, caNamespace string) error {
 	log := l.WithValues("caNamespace", caNamespace)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	// Create self-signed issuer if not exists (in caNamespace)
 	iss := cmapi.Issuer{}
@@ -98,4 +100,46 @@ func initCACertificate(caCert *cmapi.Certificate, caNamespace string) {
 		Kind:  "Issuer",
 		Group: "",
 	}
+}
+
+func GetServiceCA(ctx context.Context, c client.Client, l logr.Logger, caNamespace string) (string, error) {
+	log := l.WithValues("caNamespace", caNamespace)
+	caCert := cmapi.Certificate{}
+	for {
+		err := c.Get(ctx, client.ObjectKey{
+			Name:      CACertName,
+			Namespace: caNamespace,
+		}, &caCert)
+		if err != nil {
+			log.Error(err, "fetching CA certificate")
+			return "", err
+		}
+
+		if isCertReady(&caCert) {
+			// break loop if certificate is ready
+			break
+		}
+		log.Info("CA certificate not yet ready")
+		time.Sleep(time.Second)
+	}
+
+	secret := corev1.Secret{}
+	err := c.Get(ctx, client.ObjectKey{
+		Name:      caCert.Spec.SecretName,
+		Namespace: caNamespace,
+	}, &secret)
+	if err != nil {
+		log.Error(err, "Fetching CA secret")
+		return "", err
+	}
+	caBytes, ok := secret.Data["tls.crt"]
+	if !ok {
+		return "", fmt.Errorf("key `tls.crt` missing in CA secret")
+	}
+
+	if !utf8.Valid(caBytes) {
+		return "", fmt.Errorf("`tls.crt` in secret is not valid UTF-8")
+	}
+
+	return string(caBytes), nil
 }

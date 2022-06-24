@@ -98,7 +98,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = initializeServiceCA(initClient, setupLog, caNamespace)
+	ctx := ctrl.SetupSignalHandler()
+
+	err = initializeServiceCA(ctx, initClient, setupLog, caNamespace)
 	if err != nil {
 		setupLog.Error(err, "unable to initialize service CA")
 		os.Exit(1)
@@ -109,6 +111,21 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Service")
+		os.Exit(1)
+	}
+
+	// TODO: Ensure this is updated when the CA certificate gets renewed
+	ca, err := certs.GetServiceCA(ctx, initClient, setupLog, caNamespace)
+	if err != nil {
+		setupLog.Error(err, "unable to fetch Service CA certificate data", "controller", "ConfigMap")
+		os.Exit(1)
+	}
+	if err = (&controllers.ConfigMapReconciler{
+		Client:    mgr.GetClient(),
+		Scheme:    mgr.GetScheme(),
+		ServiceCA: ca,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "ConfigMap")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
@@ -123,7 +140,7 @@ func main() {
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
@@ -133,9 +150,9 @@ func initClient(config *rest.Config) (client.Client, error) {
 	return client.New(config, client.Options{Scheme: scheme})
 }
 
-func initializeServiceCA(c client.Client, l logr.Logger, caNamespace string) error {
+func initializeServiceCA(ctx context.Context, c client.Client, l logr.Logger, caNamespace string) error {
 	cmcrd := extv1.CustomResourceDefinition{}
-	if err := c.Get(context.Background(), client.ObjectKey{Name: "certificates.cert-manager.io"}, &cmcrd); err != nil {
+	if err := c.Get(ctx, client.ObjectKey{Name: "certificates.cert-manager.io"}, &cmcrd); err != nil {
 		if errors.IsNotFound(err) {
 			l.Error(err, "CRD `certificates.cert-manager.io` missing, exiting...")
 			os.Exit(1)
@@ -145,5 +162,5 @@ func initializeServiceCA(c client.Client, l logr.Logger, caNamespace string) err
 	}
 
 	// Ensure that service CA exists
-	return certs.EnsureCA(c, l, caNamespace)
+	return certs.EnsureCA(ctx, c, l, caNamespace)
 }
