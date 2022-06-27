@@ -14,12 +14,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var (
-	SelfSignedIssuerName = "service-ca-self-signed"
-	CACertName           = "service-ca-certificate"
-	CAName               = "service-ca"
-	CASecretName         = "service-ca-root"
-	ServiceIssuerName    = "service-ca-issuer"
+const (
+	selfSignedIssuerName = "service-ca-self-signed"
+	caCertName           = "service-ca-certificate"
+	caName               = "service-ca"
+	caSecretName         = "service-ca-root"
+	serviceIssuerName    = "service-ca-issuer"
 )
 
 // EnsureCA ensures that the Service CA is completely setup on the cluster
@@ -49,7 +49,7 @@ func EnsureCA(ctx context.Context, c client.Client, l logr.Logger, caNamespace s
 func ensureSelfSignedIssuer(ctx context.Context, c client.Client, l logr.Logger, caNamespace string) error {
 	iss := cmapi.Issuer{}
 	err := c.Get(ctx, client.ObjectKey{
-		Name:      SelfSignedIssuerName,
+		Name:      selfSignedIssuerName,
 		Namespace: caNamespace,
 	}, &iss)
 	if err != nil && !errors.IsNotFound(err) {
@@ -58,7 +58,7 @@ func ensureSelfSignedIssuer(ctx context.Context, c client.Client, l logr.Logger,
 	}
 	if errors.IsNotFound(err) {
 		l.Info("Self-signed issuer doesn't exist, creating...")
-		iss.Name = SelfSignedIssuerName
+		iss.Name = selfSignedIssuerName
 		iss.Namespace = caNamespace
 		iss.Spec.SelfSigned = &cmapi.SelfSignedIssuer{}
 		if err := c.Create(ctx, &iss); err != nil {
@@ -72,7 +72,7 @@ func ensureCACertificate(ctx context.Context, c client.Client, l logr.Logger, ca
 	// Create CA cert if not exists (in caNamespace)
 	caCert := cmapi.Certificate{}
 	err := c.Get(ctx, client.ObjectKey{
-		Name:      CACertName,
+		Name:      caCertName,
 		Namespace: caNamespace,
 	}, &caCert)
 	if err != nil && !errors.IsNotFound(err) {
@@ -92,16 +92,16 @@ func ensureCACertificate(ctx context.Context, c client.Client, l logr.Logger, ca
 func ensureServiceCAIssuer(ctx context.Context, c client.Client, l logr.Logger, caNamespace string) error {
 	// Create Service CA clusterissuer, if not exists
 	serviceIssuer := cmapi.ClusterIssuer{}
-	err := c.Get(ctx, client.ObjectKey{Name: ServiceIssuerName}, &serviceIssuer)
+	err := c.Get(ctx, client.ObjectKey{Name: serviceIssuerName}, &serviceIssuer)
 	if err != nil && !errors.IsNotFound(err) {
 		l.Error(err, "while fetching service CA cluster issuer")
 		return err
 	}
 	if errors.IsNotFound(err) {
 		l.Info("Service CA cluster issuer doesn't exist, creating...")
-		serviceIssuer.Name = ServiceIssuerName
+		serviceIssuer.Name = serviceIssuerName
 		serviceIssuer.Spec.CA = &cmapi.CAIssuer{
-			SecretName: CASecretName,
+			SecretName: caSecretName,
 		}
 		if err := c.Create(ctx, &serviceIssuer); err != nil {
 			return err
@@ -111,18 +111,18 @@ func ensureServiceCAIssuer(ctx context.Context, c client.Client, l logr.Logger, 
 }
 
 func initCACertificate(caCert *cmapi.Certificate, caNamespace string) {
-	caCert.Name = CACertName
+	caCert.Name = caCertName
 	caCert.Namespace = caNamespace
 	caCert.Spec.IsCA = true
-	caCert.Spec.CommonName = CAName
-	caCert.Spec.SecretName = CASecretName
+	caCert.Spec.CommonName = caName
+	caCert.Spec.SecretName = caSecretName
 	// TODO: make the private key config configurable?
 	caCert.Spec.PrivateKey = &cmapi.CertificatePrivateKey{
 		Algorithm: cmapi.ECDSAKeyAlgorithm,
 		Size:      521,
 	}
 	caCert.Spec.IssuerRef = cmmeta.ObjectReference{
-		Name:  SelfSignedIssuerName,
+		Name:  selfSignedIssuerName,
 		Kind:  "Issuer",
 		Group: "cert-manager.io",
 	}
@@ -133,7 +133,7 @@ func GetServiceCA(ctx context.Context, c client.Client, l logr.Logger, caNamespa
 	caCert := cmapi.Certificate{}
 	for {
 		err := c.Get(ctx, client.ObjectKey{
-			Name:      CACertName,
+			Name:      caCertName,
 			Namespace: caNamespace,
 		}, &caCert)
 		if err != nil {

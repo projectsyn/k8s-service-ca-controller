@@ -55,7 +55,7 @@ func newCertificate(ctx context.Context, c client.Client, certName, secretName s
 			SecretName: secretName,
 			IsCA:       false,
 			IssuerRef: cmmeta.ObjectReference{
-				Name:  ServiceIssuerName,
+				Name:  serviceIssuerName,
 				Kind:  "ClusterIssuer",
 				Group: "cert-manager.io",
 			},

@@ -32,7 +32,7 @@ func TestCerts_ensureSelfSignedIssuer(t *testing.T) {
 			objects: []client.Object{
 				&cmapi.Issuer{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      SelfSignedIssuerName,
+						Name:      selfSignedIssuerName,
 						Namespace: testCANamespace,
 					},
 					Spec: cmapi.IssuerSpec{
@@ -53,7 +53,7 @@ func TestCerts_ensureSelfSignedIssuer(t *testing.T) {
 		assert.NoError(t, err)
 		iss := cmapi.Issuer{}
 		err = c.Get(ctx, client.ObjectKey{
-			Name:      SelfSignedIssuerName,
+			Name:      selfSignedIssuerName,
 			Namespace: testCANamespace,
 		}, &iss)
 		assert.NoError(t, err)
@@ -75,19 +75,19 @@ func TestCerts_ensureCACertificate(t *testing.T) {
 			objects: []client.Object{
 				&cmapi.Certificate{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      CACertName,
+						Name:      caCertName,
 						Namespace: testCANamespace,
 					},
 					Spec: cmapi.CertificateSpec{
-						CommonName: CAName,
+						CommonName: caName,
 						IsCA:       true,
-						SecretName: CASecretName,
+						SecretName: caSecretName,
 						PrivateKey: &cmapi.CertificatePrivateKey{
 							Algorithm: cmapi.ECDSAKeyAlgorithm,
 							Size:      521,
 						},
 						IssuerRef: cmmeta.ObjectReference{
-							Name:  SelfSignedIssuerName,
+							Name:  selfSignedIssuerName,
 							Kind:  "Issuer",
 							Group: "cert-manager.io",
 						},
@@ -105,19 +105,19 @@ func TestCerts_ensureCACertificate(t *testing.T) {
 		assert.NoError(t, err)
 		cert := cmapi.Certificate{}
 		err = c.Get(ctx, client.ObjectKey{
-			Name:      CACertName,
+			Name:      caCertName,
 			Namespace: testCANamespace,
 		}, &cert)
 		assert.NoError(t, err)
 		assert.Equal(t, cert.Spec.IsCA, true)
-		assert.Equal(t, cert.Spec.CommonName, CAName)
-		assert.Equal(t, cert.Spec.SecretName, CASecretName)
+		assert.Equal(t, cert.Spec.CommonName, caName)
+		assert.Equal(t, cert.Spec.SecretName, caSecretName)
 		assert.Equal(t, cert.Spec.PrivateKey, &cmapi.CertificatePrivateKey{
 			Algorithm: cmapi.ECDSAKeyAlgorithm,
 			Size:      521,
 		})
 		assert.Equal(t, cert.Spec.IssuerRef, cmmeta.ObjectReference{
-			Name:  SelfSignedIssuerName,
+			Name:  selfSignedIssuerName,
 			Kind:  "Issuer",
 			Group: "cert-manager.io",
 		})
@@ -138,12 +138,12 @@ func TestCerts_ensureSeviceCAIssuer(t *testing.T) {
 			objects: []client.Object{
 				&cmapi.ClusterIssuer{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: ServiceIssuerName,
+						Name: serviceIssuerName,
 					},
 					Spec: cmapi.IssuerSpec{
 						IssuerConfig: cmapi.IssuerConfig{
 							CA: &cmapi.CAIssuer{
-								SecretName: CASecretName,
+								SecretName: caSecretName,
 							},
 						},
 					},
@@ -160,11 +160,11 @@ func TestCerts_ensureSeviceCAIssuer(t *testing.T) {
 		assert.NoError(t, err)
 		iss := cmapi.ClusterIssuer{}
 		err = c.Get(ctx, client.ObjectKey{
-			Name: ServiceIssuerName,
+			Name: serviceIssuerName,
 		}, &iss)
 		assert.NoError(t, err)
 		assert.Equal(t, &cmapi.CAIssuer{
-			SecretName: CASecretName,
+			SecretName: caSecretName,
 		}, iss.Spec.CA)
 	}
 }
@@ -187,11 +187,11 @@ func TestCerts_GetServiceCA(t *testing.T) {
 			objects: []client.Object{
 				&cmapi.Certificate{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      CACertName,
+						Name:      caCertName,
 						Namespace: testCANamespace,
 					},
 					Spec: cmapi.CertificateSpec{
-						SecretName: CASecretName,
+						SecretName: caSecretName,
 					},
 					Status: cmapi.CertificateStatus{
 						Conditions: []cmapi.CertificateCondition{
@@ -204,7 +204,7 @@ func TestCerts_GetServiceCA(t *testing.T) {
 				},
 				&corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      CASecretName,
+						Name:      caSecretName,
 						Namespace: testCANamespace,
 					},
 					Data: map[string][]byte{
