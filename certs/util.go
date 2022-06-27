@@ -13,6 +13,8 @@ const (
 	ServiceCertSecretLabelKey = "service.syn.tools/certificate"
 )
 
+// CertificateName returns the name for the Certificate resource belonging to
+// the service with name `svcName`
 func CertificateName(svcName string) string {
 	return fmt.Sprintf("%s-tls", svcName)
 }

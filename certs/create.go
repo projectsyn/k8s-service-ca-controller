@@ -16,6 +16,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// CreateCertificate creates a Certificate resource for an appropriately
+// labeled service
 func CreateCertificate(ctx context.Context, l logr.Logger, c client.Client, svc corev1.Service, secretName string) error {
 	certName := CertificateName(svc.Name)
 

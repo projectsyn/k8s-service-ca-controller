@@ -45,7 +45,7 @@ func EnsureCA(ctx context.Context, c client.Client, l logr.Logger, caNamespace s
 }
 
 // ensureSelfSignedIssuer creates a self-signed issuer in `caNamespace` if it
-// doesn't exist yet.
+// doesn't exist
 func ensureSelfSignedIssuer(ctx context.Context, c client.Client, l logr.Logger, caNamespace string) error {
 	iss := cmapi.Issuer{}
 	err := c.Get(ctx, client.ObjectKey{
@@ -68,6 +68,7 @@ func ensureSelfSignedIssuer(ctx context.Context, c client.Client, l logr.Logger,
 	return nil
 }
 
+// ensureCACertificate creates the Service CA certificate if it doesn't exist
 func ensureCACertificate(ctx context.Context, c client.Client, l logr.Logger, caNamespace string) error {
 	// Create CA cert if not exists (in caNamespace)
 	caCert := cmapi.Certificate{}
@@ -89,6 +90,8 @@ func ensureCACertificate(ctx context.Context, c client.Client, l logr.Logger, ca
 	return nil
 }
 
+// ensureServiceCAIssuer creates the ClusterIssuer for the Service CA if it
+// doesn't exist
 func ensureServiceCAIssuer(ctx context.Context, c client.Client, l logr.Logger, caNamespace string) error {
 	// Create Service CA clusterissuer, if not exists
 	serviceIssuer := cmapi.ClusterIssuer{}
@@ -110,6 +113,7 @@ func ensureServiceCAIssuer(ctx context.Context, c client.Client, l logr.Logger, 
 	return nil
 }
 
+// initCACertificate initializes the Service CA certificate resource
 func initCACertificate(caCert *cmapi.Certificate, caNamespace string) {
 	caCert.Name = caCertName
 	caCert.Namespace = caNamespace
@@ -128,6 +132,7 @@ func initCACertificate(caCert *cmapi.Certificate, caNamespace string) {
 	}
 }
 
+// GetServiceCA returns the Service CA certificate as a string
 func GetServiceCA(ctx context.Context, c client.Client, l logr.Logger, caNamespace string) (string, error) {
 	log := l.WithValues("caNamespace", caNamespace)
 	caCert := cmapi.Certificate{}

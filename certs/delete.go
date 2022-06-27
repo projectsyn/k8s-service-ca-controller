@@ -10,6 +10,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// DeleteSecret cleans up the certificate secret for a service which is
+// deleted
 func DeleteSecret(ctx context.Context, l logr.Logger, c client.Client, req ctrl.Request) error {
 	secrets := corev1.SecretList{}
 	err := c.List(ctx, &secrets,
