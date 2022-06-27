@@ -1,0 +1,13 @@
+domain: syn.tools
+layout:
+- go.kubebuilder.io/v3
+projectName: k8s-service-ca-controller
+repo: github.com/projectsyn/k8s-service-ca-controller
+resources:
+- controller: true
+  kind: Service
+  version: v1
+- controller: true
+  kind: ConfigMap
+  version: v1
+version: "3"
