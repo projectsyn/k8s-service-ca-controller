@@ -73,7 +73,7 @@ func newCertificate(ctx context.Context, c client.Client, certName, secretName s
 
 func updateCertificate(cert *cmapi.Certificate, svc corev1.Service) error {
 	svcName := fmt.Sprintf("%s.%s", svc.Name, svc.Namespace)
-	svcDnsNames := []string{
+	svcDNSNames := []string{
 		svc.Name,
 		svcName,
 		fmt.Sprintf("%s.svc", svcName),
@@ -91,7 +91,7 @@ func updateCertificate(cert *cmapi.Certificate, svc corev1.Service) error {
 
 	cert.Spec.Duration = certDuration
 	cert.Spec.RenewBefore = certRenewBefore
-	cert.Spec.DNSNames = svcDnsNames
+	cert.Spec.DNSNames = svcDNSNames
 	cert.Spec.IPAddresses = svc.Spec.ClusterIPs
 	cert.Spec.SecretTemplate = &cmapi.CertificateSecretTemplate{
 		Labels: map[string]string{
