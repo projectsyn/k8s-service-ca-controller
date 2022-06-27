@@ -36,7 +36,7 @@ func TestCerts_DeleteSecret(t *testing.T) {
 						Name:      "test-secret",
 						Namespace: "test-ns",
 						Labels: map[string]string{
-							ServiceCertKey: "test-svc-tls",
+							ServiceCertSecretLabelKey: "test-svc-tls",
 						},
 					},
 				},

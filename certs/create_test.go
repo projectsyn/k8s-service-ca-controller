@@ -96,7 +96,7 @@ func TestCerts_updateCertificate(t *testing.T) {
 	assert.Equal(t, &metav1.Duration{Duration: time.Hour * 2160}, cert.Spec.Duration)
 	assert.Equal(t, &metav1.Duration{Duration: time.Hour * 360}, cert.Spec.RenewBefore)
 	assert.Equal(t, map[string]string{
-		ServiceCertKey: "test-cert",
+		ServiceCertSecretLabelKey: "test-cert",
 	}, cert.Spec.SecretTemplate.Labels)
 }
 

@@ -93,7 +93,7 @@ func updateCertificate(cert *cmapi.Certificate, svc corev1.Service) error {
 	cert.Spec.IPAddresses = svc.Spec.ClusterIPs
 	cert.Spec.SecretTemplate = &cmapi.CertificateSecretTemplate{
 		Labels: map[string]string{
-			ServiceCertKey: cert.Name,
+			ServiceCertSecretLabelKey: cert.Name,
 		},
 	}
 

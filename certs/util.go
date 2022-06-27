@@ -7,8 +7,10 @@ import (
 	cmmeta "github.com/cert-manager/cert-manager/pkg/apis/meta/v1"
 )
 
-var (
-	ServiceCertKey = "service.syn.tools/certificate"
+const (
+	// ServiceCertSecretLabelKey is the label key for linking the
+	// Certificate secret to the service for which it was issued
+	ServiceCertSecretLabelKey = "service.syn.tools/certificate"
 )
 
 func CertificateName(svcName string) string {

@@ -14,7 +14,7 @@ func DeleteSecret(ctx context.Context, l logr.Logger, c client.Client, req ctrl.
 	secrets := corev1.SecretList{}
 	err := c.List(ctx, &secrets,
 		client.MatchingLabels{
-			ServiceCertKey: CertificateName(req.Name),
+			ServiceCertSecretLabelKey: CertificateName(req.Name),
 		}, client.InNamespace(req.Namespace))
 	if err != nil {
 		return err
