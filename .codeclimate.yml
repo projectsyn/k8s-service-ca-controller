@@ -10,6 +10,25 @@ plugins:
     enabled: true
   fixme:
     enabled: true
+
+checks:
+  argument-count:
+    enabled: true
+    config:
+      threshold: 6
+  method-lines:
+    enabled: true
+    config:
+      threshold: 50
+  return-statements:
+    enabled: true
+    config:
+      threshold: 10
+  similar-code:
+    enabled: true
+  identical-code:
+    enabled: true
+
 exclude_patterns:
 - 'config/'
 - 'db/'
