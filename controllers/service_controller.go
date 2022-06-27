@@ -98,8 +98,8 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 func (r *ServiceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Service{}).
-		//TODO: figure out which bits we need here
+		// Trigger reconcile for the service if the owned Certificate
+		// is modified/deleted
 		Owns(&cmapi.Certificate{}).
-		Owns(&corev1.Secret{}).
 		Complete(r)
 }
