@@ -28,7 +28,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-var (
+const (
+	// InjectLabelKey is the label which indicates that the Service CA
+	// certificate should be injected into the ConfigMap
 	InjectLabelKey = "service.syn.tools/inject-ca-bundle"
 )
 

@@ -31,7 +31,10 @@ import (
 	cmapi "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 )
 
-var (
+const (
+	// ServingCertLabelKey is the label key which the controller reacts to
+	// to create a secret. The label value is used as the secret name
+	// for the generated Certificate.
 	ServingCertLabelKey = "service.syn.tools/serving-cert-secret-name"
 )
 
