@@ -61,6 +61,9 @@ func init() {
 //+kubebuilder:rbac:groups=cert-manager.io,resources=issuers,verbs=get;list;watch;create;update;patch
 //+kubebuilder:rbac:groups=cert-manager.io,resources=clusterissuers,verbs=get;list;watch;create;update;patch
 
+//go:generate go run sigs.k8s.io/controller-tools/cmd/controller-gen object paths="./..."
+//go:generate go run sigs.k8s.io/controller-tools/cmd/controller-gen rbac:roleName=k8s-service-ca-controller paths="./..."
+
 func main() {
 	var metricsAddr string
 	var enableLeaderElection bool

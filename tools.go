@@ -6,5 +6,5 @@
 package tools
 
 import (
-// Add any build-time dependencies here with blank imports like `_ "package"`
+	_ "sigs.k8s.io/controller-tools/cmd/controller-gen"
 )
