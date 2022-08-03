@@ -17,7 +17,6 @@ limitations under the License.
 package main
 
 import (
-	"context"
 	"flag"
 	"os"
 
@@ -25,22 +24,17 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
-	"k8s.io/client-go/rest"
 
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	cmapi "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
-	"github.com/go-logr/logr"
 
-	"github.com/projectsyn/k8s-service-ca-controller/certs"
 	"github.com/projectsyn/k8s-service-ca-controller/controllers"
 	//+kubebuilder:scaffold:imports
 )
@@ -98,38 +92,21 @@ func main() {
 		os.Exit(1)
 	}
 
-	initClient, err := initClient(mgr.GetConfig())
-	if err != nil {
-		setupLog.Error(err, "unable to setup init client")
-		os.Exit(1)
-	}
-
 	ctx := ctrl.SetupSignalHandler()
 
-	err = initializeServiceCA(ctx, initClient, setupLog, caNamespace)
-	if err != nil {
-		setupLog.Error(err, "unable to initialize service CA")
-		os.Exit(1)
-	}
-
 	if err = (&controllers.ServiceReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:      mgr.GetClient(),
+		Scheme:      mgr.GetScheme(),
+		CANamespace: caNamespace,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Service")
 		os.Exit(1)
 	}
 
-	// TODO: Ensure this is updated when the CA certificate gets renewed
-	ca, err := certs.GetServiceCA(ctx, initClient, setupLog, caNamespace)
-	if err != nil {
-		setupLog.Error(err, "unable to fetch Service CA certificate data", "controller", "ConfigMap")
-		os.Exit(1)
-	}
 	if err = (&controllers.ConfigMapReconciler{
-		Client:    mgr.GetClient(),
-		Scheme:    mgr.GetScheme(),
-		ServiceCA: ca,
+		Client:      mgr.GetClient(),
+		Scheme:      mgr.GetScheme(),
+		CANamespace: caNamespace,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ConfigMap")
 		os.Exit(1)
@@ -150,23 +127,4 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
-}
-
-func initClient(config *rest.Config) (client.Client, error) {
-	return client.New(config, client.Options{Scheme: scheme})
-}
-
-func initializeServiceCA(ctx context.Context, c client.Client, l logr.Logger, caNamespace string) error {
-	cmcrd := extv1.CustomResourceDefinition{}
-	if err := c.Get(ctx, client.ObjectKey{Name: "certificates.cert-manager.io"}, &cmcrd); err != nil {
-		if errors.IsNotFound(err) {
-			l.Error(err, "CRD `certificates.cert-manager.io` missing, exiting...")
-			os.Exit(1)
-		}
-		// Return other errors
-		return err
-	}
-
-	// Ensure that service CA exists
-	return certs.EnsureCA(ctx, c, l, caNamespace)
 }

@@ -18,8 +18,10 @@ package controllers
 
 import (
 	"context"
+	"reflect"
 	"strconv"
 
+	"github.com/projectsyn/k8s-service-ca-controller/certs"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -37,8 +39,8 @@ const (
 // ConfigMapReconciler reconciles a ConfigMap object
 type ConfigMapReconciler struct {
 	client.Client
-	Scheme    *runtime.Scheme
-	ServiceCA string
+	Scheme      *runtime.Scheme
+	CANamespace string
 }
 
 //+kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
@@ -65,6 +67,14 @@ func (r *ConfigMapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 
+	serviceCA, err := certs.GetServiceCA(ctx, r.Client, l, r.CANamespace)
+	if err != nil {
+		l.Info("Service CA not ready yet, requeuing request")
+		return ctrl.Result{
+			Requeue: true,
+		}, err
+	}
+
 	cmLabels := cm.Labels
 	if cmLabels == nil {
 		// nothing to do, exit
@@ -81,12 +91,16 @@ func (r *ConfigMapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		l.Info("Failed to parse label value as boolean", "value", inject)
 	}
 	if ok {
-		l.Info("Injecting Service CA in key `ca.crt`")
+		origCM := cm.DeepCopy()
 		if cm.Data == nil {
 			cm.Data = map[string]string{}
 		}
-		cm.Data["ca.crt"] = r.ServiceCA
-		r.Update(ctx, &cm)
+		cm.Data["ca.crt"] = serviceCA
+		if !reflect.DeepEqual(cm.Data, origCM.Data) {
+			// Only update CM if we're actually making changes
+			l.Info("Updating Service CA in key `ca.crt`")
+			r.Update(ctx, &cm)
+		}
 	} else {
 		l.Info("Label value is `false`, not injecting CA")
 	}

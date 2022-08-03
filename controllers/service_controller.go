@@ -41,7 +41,8 @@ const (
 // ServiceReconciler reconciles a Service object
 type ServiceReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme      *runtime.Scheme
+	CANamespace string
 }
 
 //+kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch
@@ -84,7 +85,16 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, nil
 	}
 
-	l.Info("Creating certificate for service")
+	l.V(1).Info("Reconciling Service CA")
+	_, err = certs.GetServiceCA(ctx, r.Client, l, r.CANamespace)
+	if err != nil {
+		l.Info("Service CA not ready yet, requeuing request")
+		return ctrl.Result{
+			Requeue: true,
+		}, err
+	}
+
+	l.V(1).Info("Reconciling certificate for service")
 
 	err = certs.CreateCertificate(ctx, l, r.Client, svc, secretName)
 	if err != nil {

@@ -6,14 +6,22 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	cmapi "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
+	cmmeta "github.com/cert-manager/cert-manager/pkg/apis/meta/v1"
 	corev1 "k8s.io/api/core/v1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/projectsyn/k8s-service-ca-controller/certs"
 )
 
 var (
 	cmName              = "test-cm"
+	serviceCANamespace  = "service-ca"
+	serviceCA_objects   = prepareTestServiceCA(serviceCANamespace)
 	unlabeledConfigMap  = prepareConfigMap(cmName, testNs, nil)
 	otherLabelConfigMap = prepareConfigMap(cmName, testNs, map[string]string{
 		"test": "foo",
@@ -80,11 +88,12 @@ func TestCMController_Reconcile(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		c, scheme := prepareTest(t, tc.objects)
+		objs := append(tc.objects, serviceCA_objects...)
+		c, scheme := prepareTest(t, objs)
 		r := ConfigMapReconciler{
-			Client:    c,
-			Scheme:    scheme,
-			ServiceCA: "TEST_CA",
+			Client:      c,
+			Scheme:      scheme,
+			CANamespace: serviceCANamespace,
 		}
 		res, err := r.Reconcile(ctx, ctrl.Request{
 			NamespacedName: client.ObjectKey{
@@ -112,6 +121,53 @@ func prepareConfigMap(name, namespace string, labels map[string]string) corev1.C
 			Name:      name,
 			Namespace: namespace,
 			Labels:    labels,
+		},
+	}
+}
+
+func prepareTestServiceCA(testCANamespace string) []client.Object {
+	return []client.Object{
+		&extv1.CustomResourceDefinition{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "certificates.cert-manager.io",
+			},
+		},
+		&cmapi.Issuer{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      certs.SelfSignedIssuerName,
+				Namespace: testCANamespace,
+			},
+			Spec: cmapi.IssuerSpec{
+				IssuerConfig: cmapi.IssuerConfig{
+					SelfSigned: &cmapi.SelfSignedIssuer{},
+				},
+			},
+		},
+		&cmapi.Certificate{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      certs.CACertName,
+				Namespace: testCANamespace,
+			},
+			Spec: cmapi.CertificateSpec{
+				SecretName: certs.CASecretName,
+			},
+			Status: cmapi.CertificateStatus{
+				Conditions: []cmapi.CertificateCondition{
+					{
+						Type:   cmapi.CertificateConditionReady,
+						Status: cmmeta.ConditionTrue,
+					},
+				},
+			},
+		},
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      certs.CASecretName,
+				Namespace: testCANamespace,
+			},
+			Data: map[string][]byte{
+				"tls.crt": []byte("TEST_CA"),
+			},
 		},
 	}
 }

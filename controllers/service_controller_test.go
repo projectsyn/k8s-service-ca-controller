@@ -2,12 +2,14 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	cmapi "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -26,10 +28,19 @@ var (
 	labeledService = prepareService("test-svc", testNs, map[string]string{
 		ServingCertLabelKey: "foo-tls",
 	})
+
+	testCANamespace = "service-ca"
+
+	cmCRD = extv1.CustomResourceDefinition{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "certificates.cert-manager.io",
+		},
+	}
 )
 
 func TestSvcController_Reconcile(t *testing.T) {
 	ctx := context.Background()
+	caObjs := prepareTestServiceCA(testCANamespace)
 	tests := map[string]struct {
 		objects         []client.Object
 		err             error
@@ -52,10 +63,21 @@ func TestSvcController_Reconcile(t *testing.T) {
 			res:             ctrl.Result{},
 			expectedCertKey: nil,
 		},
-		"LabeledService": {
+		"LabeledService_CANotExists": {
 			objects: []client.Object{
+				&cmCRD,
 				&labeledService,
 			},
+			err: fmt.Errorf("CA certificate not yet ready"),
+			res: ctrl.Result{Requeue: true},
+		},
+		"LabeledService_CAReady": {
+			objects: append(
+				[]client.Object{
+					&labeledService,
+				},
+				caObjs...,
+			),
 			err: nil,
 			res: ctrl.Result{},
 			expectedCertKey: &client.ObjectKey{
@@ -68,8 +90,9 @@ func TestSvcController_Reconcile(t *testing.T) {
 	for _, tc := range tests {
 		c, scheme := prepareTest(t, tc.objects)
 		r := ServiceReconciler{
-			Client: c,
-			Scheme: scheme,
+			Client:      c,
+			Scheme:      scheme,
+			CANamespace: testCANamespace,
 		}
 		res, err := r.Reconcile(ctx, ctrl.Request{
 			NamespacedName: client.ObjectKey{
@@ -95,6 +118,7 @@ func prepareTest(t *testing.T, initObjs []client.Object) (client.Client, *runtim
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(corev1.AddToScheme(scheme))
 	utilruntime.Must(cmapi.AddToScheme(scheme))
+	utilruntime.Must(extv1.AddToScheme(scheme))
 
 	client := fake.NewClientBuilder().
 		WithScheme(scheme).
