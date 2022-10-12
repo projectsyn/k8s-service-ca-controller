@@ -3,6 +3,7 @@ package certs
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"time"
 
 	cmapi "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
@@ -28,23 +29,25 @@ func CreateCertificate(ctx context.Context, l logr.Logger, c client.Client, svc 
 	}, &cert)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			l.Info("Certificate resource doesn't exist, creating")
+			l.V(1).Info("Certificate resource doesn't exist, creating")
 			return newCertificate(ctx, c, certName, secretName, svc)
 		}
 
-		l.Info("Error looking up certificate resource", "error", err)
+		l.V(1).Info("Error looking up certificate resource", "error", err)
 		// Unexpected error, bail
 		return err
 	}
 
-	l.Info("Found existing Certificate, updating...")
-
+	origCert := cert.DeepCopy()
 	err = updateCertificate(&cert, svc)
 	if err != nil {
 		return err
 	}
-
-	return c.Update(ctx, &cert)
+	if !reflect.DeepEqual(origCert, cert) {
+		l.V(1).Info("Applying changes to existing certificate")
+		return c.Update(ctx, &cert)
+	}
+	return nil
 }
 
 func newCertificate(ctx context.Context, c client.Client, certName, secretName string, svc corev1.Service) error {

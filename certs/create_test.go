@@ -43,6 +43,14 @@ func TestCerts_CreateCertificate(t *testing.T) {
 				prepareCertificate("test-svc", "test-ns", "foo-tls"),
 			},
 		},
+		"Noop_NoError": {
+			svc:        prepareService("test-svc", "test-ns"),
+			secretName: "foo-tls",
+			err:        nil,
+			objects: []client.Object{
+				prepareCertificate("test-svc", "test-ns", "foo-tls"),
+			},
+		},
 	}
 
 	for _, tc := range tests {
