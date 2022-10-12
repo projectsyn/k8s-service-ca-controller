@@ -96,7 +96,7 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 	l.V(1).Info("Reconciling certificate for service")
 
-	err = certs.CreateCertificate(ctx, l, r.Client, svc, secretName)
+	err = certs.CreateCertificate(ctx, l, r.Client, svc, secretName, r.Scheme)
 	if err != nil {
 		return ctrl.Result{}, err
 	}

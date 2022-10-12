@@ -11,15 +11,17 @@ import (
 	"github.com/go-logr/logr"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // CreateCertificate creates a Certificate resource for an appropriately
 // labeled service
-func CreateCertificate(ctx context.Context, l logr.Logger, c client.Client, svc corev1.Service, secretName string) error {
+func CreateCertificate(ctx context.Context, l logr.Logger, c client.Client, svc corev1.Service, secretName string, scheme *runtime.Scheme) error {
 	certName := CertificateName(svc.Name)
 
 	cert := cmapi.Certificate{}
@@ -30,7 +32,7 @@ func CreateCertificate(ctx context.Context, l logr.Logger, c client.Client, svc 
 	if err != nil {
 		if errors.IsNotFound(err) {
 			l.V(1).Info("Certificate resource doesn't exist, creating")
-			return newCertificate(ctx, c, certName, secretName, svc)
+			return newCertificate(ctx, c, certName, secretName, svc, scheme)
 		}
 
 		l.V(1).Info("Error looking up certificate resource", "error", err)
@@ -39,7 +41,7 @@ func CreateCertificate(ctx context.Context, l logr.Logger, c client.Client, svc 
 	}
 
 	origCert := cert.DeepCopy()
-	err = updateCertificate(&cert, svc)
+	err = updateCertificate(&cert, svc, scheme)
 	if err != nil {
 		return err
 	}
@@ -50,7 +52,7 @@ func CreateCertificate(ctx context.Context, l logr.Logger, c client.Client, svc 
 	return nil
 }
 
-func newCertificate(ctx context.Context, c client.Client, certName, secretName string, svc corev1.Service) error {
+func newCertificate(ctx context.Context, c client.Client, certName, secretName string, svc corev1.Service, scheme *runtime.Scheme) error {
 	cert := &cmapi.Certificate{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      certName,
@@ -67,14 +69,14 @@ func newCertificate(ctx context.Context, c client.Client, certName, secretName s
 		},
 	}
 
-	if err := updateCertificate(cert, svc); err != nil {
+	if err := updateCertificate(cert, svc, scheme); err != nil {
 		return err
 	}
 
 	return c.Create(ctx, cert)
 }
 
-func updateCertificate(cert *cmapi.Certificate, svc corev1.Service) error {
+func updateCertificate(cert *cmapi.Certificate, svc corev1.Service, scheme *runtime.Scheme) error {
 	svcName := fmt.Sprintf("%s.%s", svc.Name, svc.Namespace)
 	svcDNSNames := []string{
 		svc.Name,
@@ -103,9 +105,7 @@ func updateCertificate(cert *cmapi.Certificate, svc corev1.Service) error {
 	}
 
 	// Set ownerreference on certificate to service
-	cert.OwnerReferences = []metav1.OwnerReference{
-		*metav1.NewControllerRef(&svc, corev1.SchemeGroupVersion.WithKind("Service")),
-	}
+	controllerutil.SetControllerReference(&svc, cert, scheme)
 
 	return nil
 }

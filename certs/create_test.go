@@ -19,6 +19,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
+var scheme = createScheme()
+
 func TestCerts_CreateCertificate(t *testing.T) {
 	ctx := context.Background()
 	l := testr.New(t)
@@ -57,7 +59,7 @@ func TestCerts_CreateCertificate(t *testing.T) {
 		c := prepareTest(t, testCfg{
 			initObjs: tc.objects,
 		})
-		err := CreateCertificate(ctx, l, c, tc.svc, tc.secretName)
+		err := CreateCertificate(ctx, l, c, tc.svc, tc.secretName, scheme)
 		assert.Equal(t, tc.err, err)
 		if err == nil {
 			verifyCertificate(t, ctx, c, fmt.Sprintf("%s-tls", tc.svc.Name), tc.secretName, &tc.svc)
@@ -83,7 +85,7 @@ func TestCerts_newCertificate(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		err := newCertificate(ctx, c, tc.certName, tc.secretName, tc.svc)
+		err := newCertificate(ctx, c, tc.certName, tc.secretName, tc.svc, scheme)
 		assert.Equal(t, tc.err, err)
 		if err == nil {
 			verifyCertificate(t, ctx, c, tc.certName, tc.secretName, &tc.svc)
@@ -95,7 +97,7 @@ func TestCerts_updateCertificate(t *testing.T) {
 	cert := cmapi.Certificate{}
 	cert.Name = "test-cert"
 	svc := prepareService("test-svc", "test-ns")
-	err := updateCertificate(&cert, svc)
+	err := updateCertificate(&cert, svc, scheme)
 
 	assert.ErrorIs(t, err, nil)
 	assert.Equal(t, dnsNames(&svc), cert.Spec.DNSNames)
@@ -220,4 +222,12 @@ func prepareTest(t *testing.T, cfg testCfg) client.Client {
 		Build()
 
 	return client
+}
+
+func createScheme() *runtime.Scheme {
+	scheme := runtime.NewScheme()
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(cmapi.AddToScheme(scheme))
+	utilruntime.Must(extv1.AddToScheme(scheme))
+	return scheme
 }
