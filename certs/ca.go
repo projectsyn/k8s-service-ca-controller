@@ -11,6 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -82,7 +83,7 @@ func ensureCACertificate(ctx context.Context, c client.Client, l logr.Logger, ca
 	}
 	if errors.IsNotFound(err) {
 		l.Info("Service CA certificate doesn't exist, creating...")
-		initCACertificate(&caCert, caNamespace)
+		caCert = newCACertificate(caNamespace)
 		if err := c.Create(ctx, &caCert); err != nil {
 			return err
 		}
@@ -113,22 +114,28 @@ func ensureServiceCAIssuer(ctx context.Context, c client.Client, l logr.Logger, 
 	return nil
 }
 
-// initCACertificate initializes the Service CA certificate resource
-func initCACertificate(caCert *cmapi.Certificate, caNamespace string) {
-	caCert.Name = CACertName
-	caCert.Namespace = caNamespace
-	caCert.Spec.IsCA = true
-	caCert.Spec.CommonName = CAName
-	caCert.Spec.SecretName = CASecretName
-	// TODO: make the private key config configurable?
-	caCert.Spec.PrivateKey = &cmapi.CertificatePrivateKey{
-		Algorithm: cmapi.ECDSAKeyAlgorithm,
-		Size:      521,
-	}
-	caCert.Spec.IssuerRef = cmmeta.ObjectReference{
-		Name:  SelfSignedIssuerName,
-		Kind:  "Issuer",
-		Group: "cert-manager.io",
+// newCACertificate returns a new Service CA certificate resource
+func newCACertificate(caNamespace string) cmapi.Certificate {
+	return cmapi.Certificate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      CACertName,
+			Namespace: caNamespace,
+		},
+		Spec: cmapi.CertificateSpec{
+			IsCA:       true,
+			CommonName: CAName,
+			SecretName: CASecretName,
+			// TODO: make the private key config configurable?
+			PrivateKey: &cmapi.CertificatePrivateKey{
+				Algorithm: cmapi.ECDSAKeyAlgorithm,
+				Size:      521,
+			},
+			IssuerRef: cmmeta.ObjectReference{
+				Name:  SelfSignedIssuerName,
+				Kind:  "Issuer",
+				Group: "cert-manager.io",
+			},
+		},
 	}
 }
 
