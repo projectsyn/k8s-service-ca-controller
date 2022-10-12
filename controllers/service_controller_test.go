@@ -69,7 +69,7 @@ func TestSvcController_Reconcile(t *testing.T) {
 				&labeledService,
 			},
 			err: fmt.Errorf("CA certificate not yet ready"),
-			res: ctrl.Result{Requeue: true},
+			res: ctrl.Result{},
 		},
 		"LabeledService_CAReady": {
 			objects: append(

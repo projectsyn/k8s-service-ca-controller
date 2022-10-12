@@ -91,9 +91,7 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	_, err = certs.GetServiceCA(ctx, r.Client, l, r.CANamespace)
 	if err != nil {
 		l.Info("Service CA not ready yet, requeuing request")
-		return ctrl.Result{
-			Requeue: true,
-		}, err
+		return ctrl.Result{}, err
 	}
 
 	l.V(1).Info("Reconciling certificate for service")

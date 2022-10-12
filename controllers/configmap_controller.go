@@ -74,11 +74,8 @@ func (r *ConfigMapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	serviceCA, err := certs.GetServiceCA(ctx, r.Client, l, r.CANamespace)
 	if err != nil {
 		l.Info("Service CA not ready yet, requeuing request")
-		return ctrl.Result{
-			Requeue: true,
-		}, err
+		return ctrl.Result{}, err
 	}
-
 	cmLabels := cm.Labels
 	if cmLabels == nil {
 		// nothing to do, exit
