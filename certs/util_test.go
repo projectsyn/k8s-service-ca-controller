@@ -16,9 +16,35 @@ func TestCerts_CertificateName(t *testing.T) {
 }
 
 func TestCerts_isCertReady(t *testing.T) {
+	tests := map[string]struct {
+		cert     cmapi.Certificate
+		expected bool
+	}{
+		"NoConditions": {
+			cert:     makeCert(false, false, false),
+			expected: false,
+		},
+		"Issuing": {
+			cert:     makeCert(false, true, false),
+			expected: false,
+		},
+		"IssuingNotReady": {
+			cert:     makeCert(true, true, false),
+			expected: false,
+		},
+		"Ready": {
+			cert:     makeCert(true, true, true),
+			expected: true,
+		},
+	}
+
+	for _, tc := range tests {
+		ready := isCertReady(&tc.cert)
+		assert.Equal(t, tc.expected, ready)
+	}
 }
 
-func makeCert(hasReady, hasIssuing, ready bool) *cmapi.Certificate {
+func makeCert(hasReady, hasIssuing, ready bool) cmapi.Certificate {
 	cert := cmapi.Certificate{
 		Status: cmapi.CertificateStatus{
 			Conditions: []cmapi.CertificateCondition{},
@@ -43,5 +69,5 @@ func makeCert(hasReady, hasIssuing, ready bool) *cmapi.Certificate {
 			})
 	}
 
-	return &cert
+	return cert
 }
