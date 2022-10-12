@@ -63,11 +63,7 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}, &svc)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			// DeleteSecret is a noop if no secret labeled with
-			// the deleted service's name is found.
-			if err := certs.DeleteSecret(ctx, l, r.Client, req); err != nil {
-				return ctrl.Result{}, err
-			}
+			// Service got deleted, we don't need to do anything
 			return ctrl.Result{}, nil
 		}
 
