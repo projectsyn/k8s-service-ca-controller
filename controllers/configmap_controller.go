@@ -88,21 +88,25 @@ func (r *ConfigMapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 	ok, err = strconv.ParseBool(inject)
 	if err != nil {
-		l.Info("Failed to parse label value as boolean", "value", inject)
+		l.V(1).Info("Failed to parse label value as boolean", "value", inject)
+		// don't requeue
+		return ctrl.Result{}, nil
 	}
-	if ok {
-		origCM := cm.DeepCopy()
-		if cm.Data == nil {
-			cm.Data = map[string]string{}
-		}
-		cm.Data["ca.crt"] = serviceCA
-		if !reflect.DeepEqual(cm.Data, origCM.Data) {
-			// Only update CM if we're actually making changes
-			l.Info("Updating Service CA in key `ca.crt`")
-			r.Update(ctx, &cm)
-		}
-	} else {
-		l.Info("Label value is `false`, not injecting CA")
+	if !ok {
+		l.V(1).Info("Label value is `false`, not injecting CA")
+		// don't requeue
+		return ctrl.Result{}, nil
+	}
+
+	origCM := cm.DeepCopy()
+	if cm.Data == nil {
+		cm.Data = map[string]string{}
+	}
+	cm.Data["ca.crt"] = serviceCA
+	if !reflect.DeepEqual(cm.Data, origCM.Data) {
+		// Only update CM if we're actually making changes
+		l.Info("Updating Service CA in key `ca.crt`")
+		r.Update(ctx, &cm)
 	}
 
 	return ctrl.Result{}, nil
