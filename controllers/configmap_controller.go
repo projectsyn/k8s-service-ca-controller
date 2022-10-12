@@ -71,11 +71,6 @@ func (r *ConfigMapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 
-	serviceCA, err := certs.GetServiceCA(ctx, r.Client, l, r.CANamespace)
-	if err != nil {
-		l.Info("Service CA not ready yet, requeuing request")
-		return ctrl.Result{}, err
-	}
 	cmLabels := cm.Labels
 	if cmLabels == nil {
 		// nothing to do, exit
@@ -97,6 +92,12 @@ func (r *ConfigMapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		l.V(1).Info("Label value is `false`, not injecting CA")
 		// don't requeue
 		return ctrl.Result{}, nil
+	}
+
+	serviceCA, err := certs.GetServiceCA(ctx, r.Client, l, r.CANamespace)
+	if err != nil {
+		l.Info("Service CA not ready yet, requeuing request")
+		return ctrl.Result{}, err
 	}
 
 	origCM := cm.DeepCopy()
