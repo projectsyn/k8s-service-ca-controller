@@ -182,7 +182,7 @@ func GetServiceCA(ctx context.Context, c client.Client, l logr.Logger, caNamespa
 	return string(caBytes), nil
 }
 
-// InitializeServiceCA checks that
+// initializeServiceCA checks that cert-manager CRDs exist and ensures that the service CA is setup
 func initializeServiceCA(ctx context.Context, l logr.Logger, c client.Client, caNamespace string) error {
 	cmcrd := extv1.CustomResourceDefinition{}
 	if err := c.Get(ctx, client.ObjectKey{Name: "certificates.cert-manager.io"}, &cmcrd); err != nil {

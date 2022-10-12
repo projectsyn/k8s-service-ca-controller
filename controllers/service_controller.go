@@ -38,7 +38,8 @@ const (
 	ServingCertLabelKey = "service.syn.tools/serving-cert-secret-name"
 )
 
-// ServiceReconciler reconciles a Service object
+// ServiceReconciler reconcile Service objects which have the label
+// `service.syn.tools/serving-cert-secret-name` set.
 type ServiceReconciler struct {
 	client.Client
 	Scheme      *runtime.Scheme
@@ -51,8 +52,13 @@ type ServiceReconciler struct {
 //+kubebuilder:rbac:groups=cert-manager.io,resources=certificates,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=cert-manager.io,resources=certificates/status,verbs=get;update;patch;delete
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
+// Reconcile creates or updates a cert-manager Certificate resource for
+// services which have label `service.syn.tools/serving-cert-secret-name` set.
+// The Certificate resource is configured to use the Service CA cluster
+// issuer, and the value of the `service.syn.tools/serving-cert-secret-name`
+// label is used as the certificate secret name.
+// Please note that the reconciler will requeue requests until the Service CA
+// is created an ready.
 func (r *ServiceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx).WithValues("namespace", req.Namespace, "name", req.Name)
 

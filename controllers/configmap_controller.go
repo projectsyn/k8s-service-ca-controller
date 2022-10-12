@@ -36,7 +36,9 @@ const (
 	InjectLabelKey = "service.syn.tools/inject-ca-bundle"
 )
 
-// ConfigMapReconciler reconciles a ConfigMap object
+// ConfigMapReconciler injects the service CA certificate into field `ca.crt`
+// of ConfigMap objects which have the label
+// `service.syn.tools/inject-ca-bundle` set to `true`.
 type ConfigMapReconciler struct {
 	client.Client
 	Scheme      *runtime.Scheme
@@ -47,8 +49,10 @@ type ConfigMapReconciler struct {
 //+kubebuilder:rbac:groups=core,resources=configmaps/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=core,resources=configmaps/finalizers,verbs=update
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
+// Reconcile injects the service CA certificate into ConfigMaps which have the
+// `service.syn.tools/inject-ca-bundle` label set to `true`.
+// Please note that the reconciler will requeue requests until the Service CA
+// is created an ready.
 func (r *ConfigMapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx).WithValues("namespace", req.Namespace, "name", req.Name)
 
