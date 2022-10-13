@@ -1,6 +1,6 @@
 module kind
 
-go 1.18
+go 1.19
 
 require sigs.k8s.io/kind v0.14.0
 
